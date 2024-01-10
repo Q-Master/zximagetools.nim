@@ -29,8 +29,6 @@ proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
 
 proc open*(_: typedesc[SCLImage], data: openArray[byte]): SCLImage =
   if data[0 .. 7] != fileSignature:
-    echo data[0 .. 7]
-    echo fileSignature
     raise newException(ValueError, "Неизвестный формат диска")
   result.new
   result.data = @data

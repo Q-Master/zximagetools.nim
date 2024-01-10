@@ -9,9 +9,9 @@ type
     TRD_DISC_40_1
   
   TRDFile* = ref object of ZXFile
-    startSector: uint8
-    startTrack: uint8
-    sectorCount: uint8
+    startSector*: uint8
+    startTrack*: uint8
+    sectorCount*: uint8
 
   TRDImage* = ref object of ZXImage[TRDFile]
     lastTrack: uint8

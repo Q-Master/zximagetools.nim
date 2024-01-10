@@ -1,6 +1,6 @@
 import std/[parseopt, options, strutils, unicode]
 import ../types
-import ../images/[trd, scl, tap]
+import ../images/[trd, scl, tap, hobeta]
 
 proc echoHelp() =
   echo """
@@ -22,8 +22,9 @@ proc main() =
     of cmdArgument:
       echoHelp()
   if imgname.isSome:
-    var fnameExt = imgname.get.rsplit(".", maxsplit=1)
-    case fnameExt[1].toLower()
+    let fnameExt = imgname.get.rsplit(".", maxsplit=1)
+    let ext = fnameExt[1].toLower()
+    case ext
     of "trd":
       let img = TRDImage.open(imgname.get)
       img.dumpFiles()
@@ -33,7 +34,12 @@ proc main() =
     of "tap":
       let img = TAPImage.open(imgname.get)
       img.dumpFiles()
-
+    else:
+      if ext.startsWith('$') or ext.startsWith('!'):
+        let img = HOBETAImage.open(imgname.get)
+        img.dumpFiles()
+      else:
+        raise newException(ValueError, "Неизвестный образ")
 
 when isMainModule:
   main()
