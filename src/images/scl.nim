@@ -44,3 +44,10 @@ proc dumpFiles*(img: SCLImage) =
   echo "filename","\t","start","\t","length"
   for f in img.files:
     echo f.filename, ".", f.extension, "\t", f.start, "\t", f.length
+
+
+proc getFile*(img: SCLImage, num: uint): ZXExportData =
+  if num > img.filesAmount:
+    raise newException(ValueError, "Номер файла слишком велик")
+  let header = img.files[num]
+  result = newExportData(header, img.data[header.offset])

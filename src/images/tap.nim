@@ -31,6 +31,13 @@ proc parseFile(data: openArray[byte], offset: var uint): TAPFile =
       littleEndian16(cast[ptr byte](result.length.addr), data[offset+14].addr)
       littleEndian16(cast[ptr byte](result.start.addr), data[offset+16].addr)
     of 0xff:
+      case result.ftype:
+      of ZXF_PROGRAMM:
+        result.extension = "B"
+      of ZXF_CODE:
+        result.extension = "C"
+      of ZXF_CHARACTER_ARRAY, ZXF_NUMBER_ARRAY:
+        result.extension = "D"
       result.offset = offset+3 .. offset+3+length-2
       datablock = true
     else:
@@ -55,3 +62,10 @@ proc dumpFiles*(img: TAPImage) =
   echo "filename","\t","start","\t","length"
   for f in img.files:
     echo f.filename, "\t", f.start, "\t", f.length
+
+
+proc getFile*(img: TAPImage, num: uint): ZXExportData =
+  if num > img.filesAmount:
+    raise newException(ValueError, "Номер файла слишком велик")
+  let header = img.files[num]
+  result = newExportData(header, img.data[header.offset])

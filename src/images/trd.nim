@@ -1,4 +1,4 @@
-import std/[tables, endians]
+import std/[tables, endians, strutils]
 import ../types
 
 type
@@ -127,3 +127,10 @@ proc dumpFiles*(img: TRDImage) =
       echo "DELETED"
     else:
       echo f.filename, ".", f.extension, "\t", f.start, "\t", f.length
+
+
+proc getFile*(img: TRDImage, num: uint): ZXExportData =
+  if num > img.filesAmount:
+    raise newException(ValueError, "Номер файла слишком велик")
+  let header = img.files[num]
+  result = newExportData(header, img.data[header.offset])

@@ -19,6 +19,10 @@ type
     filesAmount* : uint8
     files*: seq[T]
     data*: seq[byte]
+  
+  ZXExportData* = ref object
+    header*: ZXFile
+    data*: seq[byte]
 
 
 proc open*[T](_: typedesc[T], filename: string): T =
@@ -35,3 +39,20 @@ proc open*[T](_: typedesc[T], filename: string): T =
     return T.open(data)
   else:
     raise newException(ValueError, "File is empty")
+
+
+proc getFile*[T](img: T, name: string): ZXExportData =
+  mixin getFile
+  var i: uint = 0
+  for f in img.files:
+    let fname = f.filename.strip(leading = false) & "." & f.extension
+    if fname == name:
+      return img.getFile(i)
+    i.inc()
+  raise newException(ValueError, "Файл с именем " & name & " отсутствует")
+
+
+proc newExportData*(header: ZXFile, data: openArray[byte]): ZXExportData =
+  result.new
+  result.header = header
+  result.data = @data
