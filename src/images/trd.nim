@@ -1,4 +1,4 @@
-import std/[tables, endians, strutils]
+import std/[tables, endians]
 import ../types
 
 type
@@ -55,14 +55,14 @@ let trdTypeRevMap = {
 }.toTable()
 
 let trdSettings = {
-  TRD_DISC_80_2: (655360, 2560),
-  TRD_DISC_80_1: (327680, 1280),
-  TRD_DISC_40_2: (327680, 1280),
-  TRD_DISC_40_1: (163840, 640)
+  TRD_DISC_80_2: (655360, 2560.uint),
+  TRD_DISC_80_1: (327680, 1280.uint),
+  TRD_DISC_40_2: (327680, 1280.uint),
+  TRD_DISC_40_1: (163840, 640.uint)
 }.toTable()
 
 
-proc newTRD*(trdType: (int | TRDDiscType) = TRD_DISC_80_2, name: string = ""): TRDImage =
+proc newTRD*(name: string = "", trdType: (int | TRDDiscType) = TRD_DISC_80_2): TRDImage =
   result.new
   when trdType is int:
     result.discType = trdTypeRevMap[trdType]
@@ -72,8 +72,13 @@ proc newTRD*(trdType: (int | TRDDiscType) = TRD_DISC_80_2, name: string = ""): T
   result.filesAmount = 0
   result.lastTrack = 1
   result.lastSector = 0
-  result.freeSectors = trdSettings[result.disk_type][1] - 16*result.lastTrack - result.lastSector
-  result.data = newSeq[byte](trdSettings[result.disk_type][0])
+  result.freeSectors = uint16(trdSettings[result.discType][1] - 16*result.lastTrack.uint - result.lastSector)
+  result.data = newSeq[byte](trdSettings[result.discType][0])
+  result.name = name
+
+
+proc newImg*(_:typedesc[TRDImage], name: string): TRDImage =
+  result = newTRD(name)
 
 
 proc parseFile(data: openArray[byte]): TRDFile =

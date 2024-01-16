@@ -7,8 +7,15 @@ type
 
   TAPImage* = ref object of ZXImage[TAPFile]
 
-proc newTAP*(): TAPImage =
+
+proc newTAP*(name: string): TAPImage =
   result.new
+  result.name = name
+
+
+proc newImg*(_:typedesc[TAPImage], name: string): TAPImage =
+  result = newTAP(name)
+
 
 proc calcCRC(data: openArray[byte]): uint8 =
   var crc: uint8 = 0

@@ -1,6 +1,7 @@
-import std/[parseopt, options, strutils, unicode]
+import std/[os, parseopt, options]
 import ../types
 import ../images/[trd, scl, tap, hobeta]
+
 
 proc echoHelp() =
   echo """
@@ -8,9 +9,13 @@ Usage:
   list image_filename - lists all files in image
   cp - copy file from one image to another
     might be used with paths like:
-      image:/path - by name of the file in the image
-      image:number - by ordinal number of the file in the source image
-      just path - used to copy file into image as code or export file as HOBETA
+      src:
+        image:/path - by name of the file in the image
+        image:number - by ordinal number of the file in the source image
+        just path - used to copy file into image as code
+      dest:
+        image - destination image name
+        just path - user to export file as HOBETA
     e.x.
       cp myimage:/screen.c ./ - will export screen.c as a hobeta file
 """
@@ -34,24 +39,22 @@ proc parseList(p: var OptParser) =
     of cmdArgument:
       imgname = p.key.option
       break
-  let fnameExt = imgname.get.rsplit(".", maxsplit=1)
-  let ext = fnameExt[1].toLower()
-  case ext
-  of "trd":
-    let img = TRDImage.open(imgname.get)
+  let img = parseImageInfo(imgname.get)
+  case img.`type`:
+  of ZXI_TRD:
+    let img = TRDImage.open(img.name)
     img.dumpFiles()
-  of "scl":
-    let img = SCLImage.open(imgname.get)
+  of ZXI_SCL:
+    let img = SCLImage.open(img.name)
     img.dumpFiles()
-  of "tap":
-    let img = TAPImage.open(imgname.get)
+  of ZXI_TAP:
+    let img = TAPImage.open(img.name)
+    img.dumpFiles()
+  of ZXI_HOBETA:
+    let img = HOBETAImage.open(img.name)
     img.dumpFiles()
   else:
-    if ext.startsWith('$') or ext.startsWith('!'):
-      let img = HOBETAImage.open(imgname.get)
-      img.dumpFiles()
-    else:
-      raise newException(ValueError, "Неизвестный образ")
+    raise newException(ValueError, "Неизвестный образ")
 
 
 proc parseCp(p: var OptParser) =
@@ -72,7 +75,38 @@ proc parseCp(p: var OptParser) =
         dest = p.key.option
       else:
         break
-
+  let srcImg = parseImageInfo(src.get)
+  let destImg = parseImageInfo(dest.get)
+  if srcImg.`type` == ZXI_NOTYPE and destImg.`type` == ZXI_NOTYPE:
+    echoError("cp")
+  else:
+    var srcFile: ZXExportData
+    case srcImg.`type`
+    of ZXI_TRD:
+      let img = TRDImage.open(srcImg.name)
+      srcFile = img.getFile(srcImg.path)
+    of ZXI_SCL:
+      let img = SCLImage.open(srcImg.name)
+      srcFile = img.getFile(srcImg.path)
+    of ZXI_TAP:
+      let img = TAPImage.open(srcImg.name)
+      srcFile = img.getFile(srcImg.path)
+    of ZXI_HOBETA:
+      let img = HOBETAImage.open(srcImg.name)
+      srcFile = img.getFile(srcImg.path)
+    of ZXI_NOTYPE:
+      srcFile = openRaw(srcImg.name)
+    case destImg.`type`
+    of ZXI_TRD:
+      let img = TRDImage.openOrCreate(destImg.name)
+    of ZXI_SCL:
+      let img = SCLImage.openOrCreate(destImg.name)
+    of ZXI_TAP:
+      let img = TAPImage.openOrCreate(destImg.name)
+    of ZXI_HOBETA:
+      let img = HOBETAImage.openOrCreate(destImg.name)
+    of ZXI_NOTYPE:
+      discard
 
 proc main() =
   var p = initOptParser()

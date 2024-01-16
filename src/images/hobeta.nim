@@ -14,8 +14,13 @@ proc calcCRC(data: openArray[byte]): uint16 =
     i.inc
 
 
-proc newHOBETA*(): HOBETAImage =
+proc newHOBETA*(name: string): HOBETAImage =
   result.new
+  result.name = name
+
+
+proc newImg*(_:typedesc[HOBETAImage], name: string): HOBETAImage =
+  result = newHOBETA(name)
 
 
 proc open*(_: typedesc[HOBETAImage], data: openArray[byte]): HOBETAImage =
@@ -42,3 +47,12 @@ proc dumpFiles*(img: HOBETAImage) =
   echo "filename","\t","start","\t","length"
   for f in img.files:
     echo f.filename, ".", f.extension, "\t", f.start, "\t", f.length
+
+
+proc getFile*(img: HOBETAImage, num: uint): ZXExportData =
+  let header = img.files[0]
+  result = newExportData(header, img.data[header.offset])
+
+
+proc getFile*[T: HOBETAImage](img: T, name: string): ZXExportData =
+  return img.getFile(0)

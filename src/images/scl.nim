@@ -10,8 +10,14 @@ type
 
 const fileSignature = @['S'.byte,'I'.byte,'N'.byte,'C'.byte,'L'.byte,'A'.byte,'I'.byte,'R'.byte]
 
-proc newSCL*(): SCLImage =
+
+proc newSCL*(name: string): SCLImage =
   result.new
+  result.name = name
+
+
+proc newImg*(_:typedesc[SCLImage], name: string): SCLImage =
+  result = newSCL(name)
 
 
 proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
