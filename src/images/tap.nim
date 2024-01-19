@@ -1,9 +1,8 @@
-import std/[tables, endians]
+import std/[tables, endians, strutils]
 import ../types
 
 type
   TAPFile* = ref object of ZXFile
-    sectorCount: uint8
 
   TAPImage* = ref object of ZXImage[TAPFile]
 
@@ -76,3 +75,17 @@ proc getFile*(img: TAPImage, num: uint): ZXExportData =
     raise newException(ValueError, "Номер файла слишком велик")
   let header = img.files[num]
   result = newExportData(header, img.data[header.offset])
+
+
+proc addFile*(img: TAPImage, file: ZXExportData) =
+  var f = TAPFile()
+  f.filename = file.header.filename.alignLeft(10)[0 .. 10]
+  f.extension = file.header.extension
+  f.start = file.header.start
+  f.length = file.header.length
+  f.ftype = file.header.ftype
+  let startOffset: uint = img.data.high.uint
+  f.offset = startOffset .. startOffset+file.data.len.uint-1
+  img.data.add(file.data)
+  img.files.add(f)
+  img.filesAmount.inc

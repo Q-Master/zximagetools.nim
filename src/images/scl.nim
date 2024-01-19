@@ -1,5 +1,6 @@
-import std/[tables, endians]
+import std/[tables, endians, strutils]
 import ../types
+import ./trdutils
 
 type
   SCLFile* = ref object of ZXFile
@@ -29,7 +30,7 @@ proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
   littleEndian16(cast[ptr byte](result.start.addr), data[9].addr)
   littleEndian16(cast[ptr byte](result.length.addr), data[11].addr)
   result.sectorCount = data[13]
-  result.offset = dataStart .. dataStart+result.sectorCount*256
+  result.offset = dataStart .. dataStart+result.length
   dataStart += result.sectorCount*256
 
 
@@ -57,3 +58,24 @@ proc getFile*(img: SCLImage, num: uint): ZXExportData =
     raise newException(ValueError, "Номер файла слишком велик")
   let header = img.files[num]
   result = newExportData(header, img.data[header.offset])
+
+
+proc addFile*(img: SCLImage, file: ZXExportData) =
+  if img.filesAmount > 128:
+    raise newException(IOError, "В каталоге недостаточно места")
+  let realFileSize = roundToSize(file.data.len.uint)
+  let sectorSize = realFileSize.div(256)
+  if sectorSize > 255:
+    raise newException(IOError, "Размер файла слишком велик")
+  var f = SCLFile()
+  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.extension = file.header.extension
+  f.start = file.header.start
+  f.length = file.header.length
+  f.ftype = file.header.ftype
+  f.sectorCount = sectorSize.uint8
+  let startOffset: uint = img.data.high.uint
+  f.offset = startOffset .. startOffset+realFileSize
+  img.data.add(file.data)
+  img.files.add(f)
+  img.filesAmount.inc

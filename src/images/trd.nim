@@ -1,5 +1,6 @@
-import std/[tables, endians]
+import std/[tables, endians, strutils]
 import ../types
+import ./trdutils
 
 type
   TRDDiscType = enum
@@ -93,7 +94,7 @@ proc parseFile(data: openArray[byte]): TRDFile =
   result.startSector = data[14]
   result.startTrack = data[15]
   let dataStart = result.startTrack*4096+result.startSector*256
-  result.offset = dataStart .. dataStart+result.sectorCount*256
+  result.offset = dataStart .. dataStart+result.length
 
 
 proc open*(_: typedesc[TRDImage], data: openArray[byte]): TRDImage =
@@ -139,3 +140,29 @@ proc getFile*(img: TRDImage, num: uint): ZXExportData =
     raise newException(ValueError, "Номер файла слишком велик")
   let header = img.files[num]
   result = newExportData(header, img.data[header.offset])
+
+
+proc addFile*(img: TRDImage, file: ZXExportData) =
+  if img.filesAmount > 128:
+    raise newException(IOError, "В каталоге недостаточно места")
+  let realFileSize = roundToSize(file.data.len.uint)
+  let sectorSize = realFileSize.div(256)
+  if sectorSize > 255:
+    raise newException(IOError, "Размер файла слишком велик")
+  if img.freeSectors < sectorSize:
+    raise newException(IOError, "На диске недостаточно места")
+  var f = TRDFile()
+  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.extension = file.header.extension
+  f.start = file.header.start
+  f.length = file.header.length
+  f.ftype = file.header.ftype
+  f.startTrack = img.lastTrack
+  f.startSector = img.lastSector
+  f.sectorCount = sectorSize.uint8
+  (img.lastTrack, img.lastSector) = addSectors(img.lastTrack, img.lastSector, sectorSize)
+  let startOffset: uint = f.startTrack*16*256+f.startSector
+  f.offset = startOffset .. startOffset+realFileSize
+  img.data[f.offset] = file.data
+  img.files.add(f)
+  img.filesAmount.inc

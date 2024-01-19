@@ -1,4 +1,4 @@
-import std/[os, parseopt, options]
+import std/[parseopt, options]
 import ../types
 import ../images/[trd, scl, tap, hobeta]
 
@@ -99,14 +99,16 @@ proc parseCp(p: var OptParser) =
     case destImg.`type`
     of ZXI_TRD:
       let img = TRDImage.openOrCreate(destImg.name)
+      img.addFile(srcFile)
     of ZXI_SCL:
       let img = SCLImage.openOrCreate(destImg.name)
+      img.addFile(srcFile)
     of ZXI_TAP:
       let img = TAPImage.openOrCreate(destImg.name)
-    of ZXI_HOBETA:
-      let img = HOBETAImage.openOrCreate(destImg.name)
-    of ZXI_NOTYPE:
-      discard
+      img.addFile(srcFile)
+    of ZXI_HOBETA, ZXI_NOTYPE:
+      let img = newHOBETA(destImg.name)
+      img.addFile(srcFile)
 
 proc main() =
   var p = initOptParser()

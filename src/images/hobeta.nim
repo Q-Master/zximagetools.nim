@@ -1,5 +1,6 @@
-import std/[endians]
+import std/[endians, strutils]
 import ../types
+import ./trdutils
 from ./trd import nil
 
 type
@@ -29,7 +30,7 @@ proc open*(_: typedesc[HOBETAImage], data: openArray[byte]): HOBETAImage =
   if crc != calcCRC(data[0 .. 14]):
     raise newException(ValueError, "Ошибка контрольной суммы")
   result.new
-  result.data = @data
+  result.data = @data[17.uint .. data.high]
   result.filesAmount = 1
   var file = trd.TRDFile.new
   file.filename = newString(8)
@@ -39,7 +40,7 @@ proc open*(_: typedesc[HOBETAImage], data: openArray[byte]): HOBETAImage =
   littleEndian16(cast[ptr byte](file.start.addr), data[9].addr)
   littleEndian16(cast[ptr byte](file.length.addr), data[11].addr)
   file.sectorCount = data[13]
-  file.offset = 17.uint .. data.high.uint
+  file.offset = 0.uint .. result.data.high.uint
   result.files.add(file)
 
 
@@ -56,3 +57,24 @@ proc getFile*(img: HOBETAImage, num: uint): ZXExportData =
 
 proc getFile*[T: HOBETAImage](img: T, name: string): ZXExportData =
   return img.getFile(0)
+
+
+proc addFile*(img: HOBETAImage, file: ZXExportData) =
+  if img.filesAmount > 0:
+    raise newException(IOError, "В каталоге недостаточно места")
+  let realFileSize = roundToSize(file.data.len.uint)
+  let sectorSize = realFileSize.div(256)
+  if sectorSize > 255:
+    raise newException(IOError, "Размер файла слишком велик")
+  var f = trd.TRDFile()
+  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.extension = file.header.extension
+  f.start = file.header.start
+  f.length = file.header.length
+  f.ftype = file.header.ftype
+  f.sectorCount = sectorSize.uint8
+  f.offset = 0.uint .. file.data.high.uint
+  img.data = file.data
+  img.files.add(f)
+  img.filesAmount.inc
+  
