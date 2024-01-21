@@ -64,6 +64,8 @@ proc parseCp(p: var OptParser) =
     p.next()
     case p.kind
     of cmdEnd:
+      if src.isSome and dest.isSome:
+        break
       echoError("cp")
       return
     of cmdShortOption, cmdLongOption:
@@ -71,8 +73,10 @@ proc parseCp(p: var OptParser) =
     of cmdArgument:
       if src.isNone:
         src = p.key.option
+        echo "SRC: ", p.key
       elif dest.isNone:
         dest = p.key.option
+        echo "DST: ", p.key
       else:
         break
   let srcImg = parseImageInfo(src.get)
@@ -93,7 +97,7 @@ proc parseCp(p: var OptParser) =
       srcFile = img.getFile(srcImg.path)
     of ZXI_HOBETA:
       let img = HOBETAImage.open(srcImg.name)
-      srcFile = img.getFile(srcImg.path)
+      srcFile = img.getFile(0)
     of ZXI_NOTYPE:
       srcFile = openRaw(srcImg.name)
     case destImg.`type`

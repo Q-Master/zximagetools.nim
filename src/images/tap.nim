@@ -91,7 +91,7 @@ proc addHeader(img: TAPImage, file: TAPFile) =
 
 proc addFile*(img: TAPImage, file: ZXExportData) =
   var f = TAPFile()
-  f.filename = file.header.filename.alignLeft(10)[0 .. 10]
+  f.filename = file.header.filename.alignLeft(10)[0 .. 9]
   f.extension = file.header.extension
   f.start = file.header.start
   f.length = file.header.length
@@ -113,4 +113,4 @@ proc save*(img: TAPImage) =
   let file = open(img.name, fmWrite)
   defer:
     file.close()
-  discard file.writeBytes(img.data, 0, img.data.high)
+  discard file.writeBytes(img.data, 0, img.data.len)

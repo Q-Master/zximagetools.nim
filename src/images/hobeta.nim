@@ -93,5 +93,5 @@ proc save*(img: HOBETAImage) =
   let file = open(img.name, fmWrite)
   defer:
     file.close()
-  discard file.writeBytes(header, 0, header.high)
-  discard file.writeBytes(img.data, 0, img.data.high)
+  discard file.writeBytes(header, 0, header.len)
+  discard file.writeBytes(img.data, 0, img.data.len)

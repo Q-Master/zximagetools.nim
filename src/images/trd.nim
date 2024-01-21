@@ -70,7 +70,7 @@ proc newTRD*(name: string = "", trdType: (int | TRDDiscType) = TRD_DISC_80_2): T
     result.discType = trdTypeRevMap[trdType]
   else:
     result.discType = trdType
-  result.discName = name
+  result.discName = name.alignLeft(11)[0 .. 10]
   result.filesAmount = 0
   result.lastTrack = 1
   result.lastSector = 0
@@ -81,6 +81,13 @@ proc newTRD*(name: string = "", trdType: (int | TRDDiscType) = TRD_DISC_80_2): T
 
 proc newImg*(_:typedesc[TRDImage], name: string): TRDImage =
   result = newTRD(name)
+  result.data[infosectorOffset+231] = 0x10.byte
+  result.data[infosectorOffset+227] = trdTypeMap[result.discType]
+  result.data[infosectorOffset+225] = result.lastSector 
+  result.data[infosectorOffset+226] = result.lastTrack 
+  result.data[infosectorOffset+228] = result.filesAmount 
+  littleEndian16(result.data[infosectorOffset+229].addr, cast[ptr byte](result.freeSectors.addr))
+  copyMem(result.data[infosectorOffset+245].addr, result.discName[0].addr, 11)
 
 
 proc parseFile(data: openArray[byte]): TRDFile =
@@ -164,7 +171,7 @@ proc addFile*(img: TRDImage, file: ZXExportData) =
   if img.freeSectors < sectorSize:
     raise newException(IOError, "На диске недостаточно места")
   var f = TRDFile()
-  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.filename = file.header.filename.alignLeft(8)[0 .. 7]
   f.extension = file.header.extension
   f.start = file.header.start
   f.length = file.header.length
@@ -189,4 +196,4 @@ proc save*(img: TRDImage) =
   let file = open(img.name, fmWrite)
   defer:
     file.close()
-  discard file.writeBytes(img.data, 0, img.data.high)
+  discard file.writeBytes(img.data, 0, img.data.len)

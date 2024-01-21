@@ -33,6 +33,7 @@ type
     ZXI_HOBETA
 
   ZXImagePathType* = enum
+    ZXIP_NONE
     ZXIP_STRING
     ZXIP_NUM
 
@@ -42,6 +43,8 @@ type
       path*: string
     of ZXIP_NUM:
       num*: uint
+    else:
+      discard
 
   ZXImageInfo* = ref object
     `type`*: ZXImageType
@@ -115,6 +118,8 @@ proc getFile*[T](img: T, path: ZXImagePath): ZXExportData =
     return getFile(img, path.num)
   of ZXIP_STRING:
     return getFile(img, path.path)
+  of ZXIP_NONE:
+    raise newException(ValueError, "Нет имени файла или его номера")
 
 
 proc newExportData*(header: ZXFile, data: openArray[byte]): ZXExportData =

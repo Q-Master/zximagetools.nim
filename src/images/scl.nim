@@ -16,10 +16,13 @@ const fileSignature = @['S'.byte,'I'.byte,'N'.byte,'C'.byte,'L'.byte,'A'.byte,'I
 proc newSCL*(name: string): SCLImage =
   result.new
   result.name = name
+  result.header = newSeq[byte](9)
+  result.header[0 .. 7] = fileSignature
 
 
 proc newImg*(_:typedesc[SCLImage], name: string): SCLImage =
   result = newSCL(name)
+  result.data[8] = 0.byte
 
 
 proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
@@ -80,7 +83,7 @@ proc addFile*(img: SCLImage, file: ZXExportData) =
   if sectorSize > 255:
     raise newException(IOError, "Размер файла слишком велик")
   var f = SCLFile()
-  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.filename = file.header.filename.alignLeft(8)[0 .. 7]
   f.extension = file.header.extension
   f.start = file.header.start
   f.length = file.header.length
@@ -92,10 +95,11 @@ proc addFile*(img: SCLImage, file: ZXExportData) =
   img.data.add(file.data)
   img.files.add(f)
   img.filesAmount.inc
+  img.header[8] = img.filesAmount
 
 
 proc save*(img: SCLImage) =
   let file = open(img.name, fmWrite)
   defer:
     file.close()
-  discard file.writeBytes(img.data, 0, img.data.high)
+  discard file.writeBytes(img.data, 0, img.data.len)
