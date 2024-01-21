@@ -40,6 +40,7 @@ const trdType80x2 = 0x16.byte
 const trdType40x2 = 0x17.byte
 const trdType80x1 = 0x18.byte
 const trdType40x1 = 0x19.byte
+const infosectorOffset = 8*256
 
 let trdTypeMap = {
   TRD_DISC_80_2: trdType80x2,
@@ -94,11 +95,10 @@ proc parseFile(data: openArray[byte]): TRDFile =
   result.startSector = data[14]
   result.startTrack = data[15]
   let dataStart = result.startTrack*4096+result.startSector*256
-  result.offset = dataStart .. dataStart+result.length
+  result.offset = dataStart .. dataStart+result.length-1
 
 
 proc open*(_: typedesc[TRDImage], data: openArray[byte]): TRDImage =
-  let infosectorOffset = 8*256
   if data[infosectorOffset+231] != 0x10:
     raise newException(ValueError, "Неизвестный формат диска")
   let discTypeRaw = data[infosectorOffset+227]
@@ -119,11 +119,13 @@ proc open*(_: typedesc[TRDImage], data: openArray[byte]): TRDImage =
   copyMem(result.discName[0].addr, data[infosectorOffset+245].addr, 11)
   var offset = 0
   while result.files.len < 128:
-    result.files.add(parseFile(data[offset .. offset+16]))
+    result.files.add(parseFile(data[offset .. offset+15]))
     offset += 16
 
 
 proc dumpFiles*(img: TRDImage) =
+  echo img.name
+  echo "Files: ", img.filesAmount
   echo "filename","\t","start","\t","length"
   for f in img.files:
     case f.filename[0]
@@ -141,6 +143,16 @@ proc getFile*(img: TRDImage, num: uint): ZXExportData =
   let header = img.files[num]
   result = newExportData(header, img.data[header.offset])
 
+
+proc updateHeader(img: TRDImage, f: TRDFile, no: uint) =
+  let offset = no*16
+  copyMem(img.data[offset].addr, f.filename[0].addr, 8)
+  img.data[offset+8] = cast[byte](f.extension[0])
+  littleEndian16(img.data[offset+9].addr, cast[ptr byte](f.start.addr))
+  littleEndian16(img.data[offset+11].addr, cast[ptr byte](f.length.addr))
+  img.data[offset+13] = f.sectorCount
+  img.data[offset+14] = f.startSector
+  img.data[offset+15] = f.startTrack 
 
 proc addFile*(img: TRDImage, file: ZXExportData) =
   if img.filesAmount > 128:
@@ -160,9 +172,21 @@ proc addFile*(img: TRDImage, file: ZXExportData) =
   f.startTrack = img.lastTrack
   f.startSector = img.lastSector
   f.sectorCount = sectorSize.uint8
-  (img.lastTrack, img.lastSector) = addSectors(img.lastTrack, img.lastSector, sectorSize)
   let startOffset: uint = f.startTrack*16*256+f.startSector
-  f.offset = startOffset .. startOffset+realFileSize
+  f.offset = startOffset .. startOffset+file.data.len.uint-1
+  img.updateHeader(f, img.filesAmount)
+  (img.lastTrack, img.lastSector) = addSectors(img.lastTrack, img.lastSector, sectorSize)
   img.data[f.offset] = file.data
   img.files.add(f)
   img.filesAmount.inc
+  img.data[infosectorOffset+225] = img.lastSector
+  img.data[infosectorOffset+226] = img.lastTrack
+  img.data[infosectorOffset+228] = img.filesAmount
+  littleEndian16(img.data[infosectorOffset+229].addr, cast[ptr byte](img.freeSectors.addr))
+
+
+proc save*(img: TRDImage) =
+  let file = open(img.name, fmWrite)
+  defer:
+    file.close()
+  discard file.writeBytes(img.data, 0, img.data.high)

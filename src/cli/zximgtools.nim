@@ -100,15 +100,19 @@ proc parseCp(p: var OptParser) =
     of ZXI_TRD:
       let img = TRDImage.openOrCreate(destImg.name)
       img.addFile(srcFile)
+      img.save()
     of ZXI_SCL:
       let img = SCLImage.openOrCreate(destImg.name)
       img.addFile(srcFile)
+      img.save()
     of ZXI_TAP:
       let img = TAPImage.openOrCreate(destImg.name)
       img.addFile(srcFile)
+      img.save()
     of ZXI_HOBETA, ZXI_NOTYPE:
       let img = newHOBETA(destImg.name)
       img.addFile(srcFile)
+      img.save()
 
 proc main() =
   var p = initOptParser()

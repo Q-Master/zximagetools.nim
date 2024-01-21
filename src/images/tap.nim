@@ -34,9 +34,6 @@ proc parseFile(data: openArray[byte], offset: var uint): TAPFile =
       result.ftype = ZXFileType(data[offset+3])
       result.filename = newString(10)
       copyMem(result.filename[0].addr, data[offset+4].addr, 10)
-      littleEndian16(cast[ptr byte](result.length.addr), data[offset+14].addr)
-      littleEndian16(cast[ptr byte](result.start.addr), data[offset+16].addr)
-    of 0xff:
       case result.ftype:
       of ZXF_PROGRAMM:
         result.extension = "B"
@@ -44,6 +41,9 @@ proc parseFile(data: openArray[byte], offset: var uint): TAPFile =
         result.extension = "C"
       of ZXF_CHARACTER_ARRAY, ZXF_NUMBER_ARRAY:
         result.extension = "D"
+      littleEndian16(cast[ptr byte](result.length.addr), data[offset+14].addr)
+      littleEndian16(cast[ptr byte](result.start.addr), data[offset+16].addr)
+    of 0xff:
       result.offset = offset+3 .. offset+3+length-2
       datablock = true
     else:
@@ -77,6 +77,18 @@ proc getFile*(img: TAPImage, num: uint): ZXExportData =
   result = newExportData(header, img.data[header.offset])
 
 
+proc addHeader(img: TAPImage, file: TAPFile) =
+  var header: array[19, byte]
+  header[0] = 0x13.byte
+  header[1] = 0x00.byte
+  header[2] = 0x00.byte
+  header[3] = file.ftype.byte
+  copyMem(header[4].addr, file.filename[0].addr, 10)
+  littleEndian16(header[14].addr, cast[ptr byte](file.length.addr))
+  littleEndian16(header[16].addr, cast[ptr byte](file.start.addr))
+  header[18] = calcCRC(header[2 .. header.high-1])
+  img.data.add(header)
+
 proc addFile*(img: TAPImage, file: ZXExportData) =
   var f = TAPFile()
   f.filename = file.header.filename.alignLeft(10)[0 .. 10]
@@ -84,8 +96,21 @@ proc addFile*(img: TAPImage, file: ZXExportData) =
   f.start = file.header.start
   f.length = file.header.length
   f.ftype = file.header.ftype
-  let startOffset: uint = img.data.high.uint
+  img.addHeader(f)
+  let startOffset: uint = img.data.high.uint + 3
   f.offset = startOffset .. startOffset+file.data.len.uint-1
-  img.data.add(file.data)
+  var data: seq[byte] = newSeq[byte](file.data.len+2+2)
+  littleEndian16(data[0].addr, cast[ptr byte](f.length.addr))
+  data[2] = 0xff.byte
+  copyMem(data[3].addr, file.data[0].addr, file.data.len)
+  data[data.high] = calcCRC(data[2 .. data.high])
+  img.data.add(data)
   img.files.add(f)
   img.filesAmount.inc
+
+
+proc save*(img: TAPImage) =
+  let file = open(img.name, fmWrite)
+  defer:
+    file.close()
+  discard file.writeBytes(img.data, 0, img.data.high)

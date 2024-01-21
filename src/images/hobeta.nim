@@ -77,4 +77,21 @@ proc addFile*(img: HOBETAImage, file: ZXExportData) =
   img.data = file.data
   img.files.add(f)
   img.filesAmount.inc
-  
+
+
+proc save*(img: HOBETAImage) =
+  if img.filesAmount == 0:
+    raise newException(IOError, "Образ пуст")
+  var header: array[17, byte]
+  copyMem(header[0].addr, img.files[0].filename[0].addr, 8)
+  header[8] = img.files[0].extension[0].byte
+  littleEndian16(header[9].addr, cast[ptr byte](img.files[0].start.addr))
+  littleEndian16(header[11].addr, cast[ptr byte](img.files[0].length.addr))
+  header[13] = img.files[0].sectorCount
+  let crc: uint16 = calcCRC(header[0 .. 14])
+  littleEndian16(header[15].addr, cast[ptr byte](crc.addr))
+  let file = open(img.name, fmWrite)
+  defer:
+    file.close()
+  discard file.writeBytes(header, 0, header.high)
+  discard file.writeBytes(img.data, 0, img.data.high)

@@ -1,3 +1,15 @@
 {
-    "editor.tabSize": 2
+    "editor.tabSize": 2,
+    "nim.buildOnSave": false,
+    "nim.buildCommand": "c",
+    "nim.lintOnSave": true,
+    "nim.project": [
+        "src/cli/zximgtools.nim", 
+        "src/types.nim",
+        "src/images/tap.nim",
+        "src/images/scl.nim",
+        "src/images/trd.nim",
+        "src/images/hobeta.nim",
+        "src/images/trdutils.nim"
+    ]
 }

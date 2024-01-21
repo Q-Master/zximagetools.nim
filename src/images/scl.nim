@@ -7,6 +7,7 @@ type
     sectorCount: uint8
 
   SCLImage* = ref object of ZXImage[SCLFile]
+    header: seq[byte]
 
 
 const fileSignature = @['S'.byte,'I'.byte,'N'.byte,'C'.byte,'L'.byte,'A'.byte,'I'.byte,'R'.byte]
@@ -30,7 +31,7 @@ proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
   littleEndian16(cast[ptr byte](result.start.addr), data[9].addr)
   littleEndian16(cast[ptr byte](result.length.addr), data[11].addr)
   result.sectorCount = data[13]
-  result.offset = dataStart .. dataStart+result.length
+  result.offset = dataStart .. dataStart+result.length-1
   dataStart += result.sectorCount*256
 
 
@@ -38,12 +39,14 @@ proc open*(_: typedesc[SCLImage], data: openArray[byte]): SCLImage =
   if data[0 .. 7] != fileSignature:
     raise newException(ValueError, "Неизвестный формат диска")
   result.new
-  result.data = @data
   result.filesAmount = data[8]
   var offset = 9.uint
   var dataStart = result.filesAmount.uint*14+offset
+  result.header = data[0 .. dataStart-1]
+  result.data = data[dataStart .. data.high]
+  dataStart = 0
   while result.files.len < result.filesAmount.int:
-    result.files.add(parseFile(data[offset .. offset+13], dataStart))
+    result.files.add(parseFile(result.header[offset .. offset+13], dataStart))
     offset += 14
 
 
@@ -60,6 +63,15 @@ proc getFile*(img: SCLImage, num: uint): ZXExportData =
   result = newExportData(header, img.data[header.offset])
 
 
+proc addHeader(img: SCLImage, file: SCLFile) =
+  var header: array[14, byte]
+  copyMem(header[0].addr, file.filename[0].addr, 8)
+  header[8] = cast[byte](file.extension[0])
+  littleEndian16(header[9].addr, cast[ptr byte](file.start.addr))
+  littleEndian16(header[11].addr, cast[ptr byte](file.length.addr))
+  header[13] = file.sectorCount
+  img.header.add(header)
+
 proc addFile*(img: SCLImage, file: ZXExportData) =
   if img.filesAmount > 128:
     raise newException(IOError, "В каталоге недостаточно места")
@@ -75,7 +87,15 @@ proc addFile*(img: SCLImage, file: ZXExportData) =
   f.ftype = file.header.ftype
   f.sectorCount = sectorSize.uint8
   let startOffset: uint = img.data.high.uint
-  f.offset = startOffset .. startOffset+realFileSize
+  f.offset = startOffset .. startOffset+realFileSize-1
+  img.addHeader(f)
   img.data.add(file.data)
   img.files.add(f)
   img.filesAmount.inc
+
+
+proc save*(img: SCLImage) =
+  let file = open(img.name, fmWrite)
+  defer:
+    file.close()
+  discard file.writeBytes(img.data, 0, img.data.high)
