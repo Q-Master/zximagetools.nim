@@ -102,7 +102,21 @@ proc parseFile(data: openArray[byte]): TRDFile =
   result.startSector = data[14]
   result.startTrack = data[15]
   let dataStart = result.startTrack*4096+result.startSector*256
-  result.offset = dataStart .. dataStart+result.length-1
+  var realFileLength: uint16
+  case result.extension.toLowerAscii()
+  of "b":
+    realFileLength = result.sectorCount*256.uint16
+    result.ftype = ZXF_PROGRAMM
+  of "d":
+    realFileLength = result.sectorCount*256.uint16
+    if data[9].and(0x01000000) > 0:
+      result.ftype = ZXF_NUMBER_ARRAY
+    else:
+      result.ftype = ZXF_CHARACTER_ARRAY
+  else:
+    realFileLength = result.length
+    result.ftype = ZXF_CODE
+  result.offset = dataStart .. dataStart+realFileLength-1
 
 
 proc open*(_: typedesc[TRDImage], data: openArray[byte]): TRDImage =
@@ -180,7 +194,7 @@ proc addFile*(img: TRDImage, file: ZXExportData) =
   f.startSector = img.lastSector
   f.sectorCount = sectorSize.uint8
   let startOffset: uint = f.startTrack*16*256+f.startSector
-  f.offset = startOffset .. startOffset+file.data.len.uint-1
+  f.offset = startOffset .. startOffset+file.data.high.uint
   img.updateHeader(f, img.filesAmount)
   (img.lastTrack, img.lastSector) = addSectors(img.lastTrack, img.lastSector, sectorSize)
   img.data[f.offset] = file.data

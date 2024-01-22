@@ -6,7 +6,7 @@ import ../images/[trd, scl, tap, hobeta]
 proc echoHelp() =
   echo """
 Usage:
-  list image_filename - lists all files in image
+  list (ls) image_filename - lists all files in image
   cp - copy file from one image to another
     might be used with paths like:
       src:
@@ -132,7 +132,7 @@ proc main() =
         echoHelp()
     of cmdArgument:
       case p.key
-      of "list":
+      of "list", "ls":
         parseList(p)
         break
       of "cp":

@@ -5,16 +5,8 @@ license     = "MIT"
 author      = "Vladimir Berezenko <qmaster2000@gmail.com>"
 srcDir = "src"
 installExt = @["nim"]
-bin = @["cli/zximgtools"]
-
+namedBin = {"cli/zximgtools": "zximgtools"}.toTable()
+skipDirs = @["test", ".vscode"]
 # Dependencies
-requires "nim >= 0.20.00"
+requires "nim >= 1.6.00"
 
-task test, "tests":
-  let tests = @["connection", "channel", "exchange", "queue", "basic"]
-  for test in tests:
-    echo "Running " & test & " test"
-    try:
-      exec "nim c -r tests/" & test & ".nim"
-    except OSError:
-      continue

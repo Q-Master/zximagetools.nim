@@ -34,7 +34,21 @@ proc parseFile(data: openArray[byte], dataStart: var uint): SCLFile =
   littleEndian16(cast[ptr byte](result.start.addr), data[9].addr)
   littleEndian16(cast[ptr byte](result.length.addr), data[11].addr)
   result.sectorCount = data[13]
-  result.offset = dataStart .. dataStart+result.length-1
+  var realFileLength: uint16
+  case result.extension.toLowerAscii()
+  of "b":
+    realFileLength = result.sectorCount*256.uint16
+    result.ftype = ZXF_PROGRAMM
+  of "d":
+    realFileLength = result.sectorCount*256.uint16
+    if data[9].and(0x01000000) > 0:
+      result.ftype = ZXF_NUMBER_ARRAY
+    else:
+      result.ftype = ZXF_CHARACTER_ARRAY
+  else:
+    realFileLength = result.length
+    result.ftype = ZXF_CODE
+  result.offset = dataStart .. dataStart+realFileLength-1
   dataStart += result.sectorCount*256
 
 
@@ -90,7 +104,7 @@ proc addFile*(img: SCLImage, file: ZXExportData) =
   f.ftype = file.header.ftype
   f.sectorCount = sectorSize.uint8
   let startOffset: uint = img.data.high.uint
-  f.offset = startOffset .. startOffset+realFileSize-1
+  f.offset = startOffset .. startOffset+file.data.high.uint
   img.addHeader(f)
   img.data.add(file.data)
   img.files.add(f)

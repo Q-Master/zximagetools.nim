@@ -42,7 +42,7 @@ proc open*(_: typedesc[HOBETAImage], data: openArray[byte]): HOBETAImage =
   file.sectorCount = data[13]
   file.offset = 0.uint .. result.data.high.uint
   result.files.add(file)
-
+  
 
 proc dumpFiles*(img: HOBETAImage) =
   echo "filename","\t","start","\t","length"
@@ -67,7 +67,7 @@ proc addFile*(img: HOBETAImage, file: ZXExportData) =
   if sectorSize > 255:
     raise newException(IOError, "Размер файла слишком велик")
   var f = trd.TRDFile()
-  f.filename = file.header.filename.alignLeft(8)[0 .. 8]
+  f.filename = file.header.filename.alignLeft(8)[0 .. 7]
   f.extension = file.header.extension
   f.start = file.header.start
   f.length = file.header.length
