@@ -1,0 +1,25 @@
+#!/bin/sh
+
+param=$1; shift
+zxfile=$1; shift
+
+
+umask 077
+case "${param}" in
+  list) 
+    zximgtools mcls $zxfile
+    exit 0
+    ;;
+  copyout) 
+    zximgtools cp "$zxfile:$1" "$2"
+    exit 0
+    ;;
+  copyin)
+    zximgtools cp "$1" "$zxfile:$2"
+    exit 0
+    ;;
+  run) 
+    exit 1
+    ;;
+esac
+exit 1

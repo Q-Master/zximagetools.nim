@@ -7,6 +7,7 @@ proc echoHelp() =
   echo """
 Usage:
   list (ls) image_filename - lists all files in image
+  mcls image_filename - list all files in image for MC
   cp - copy file from one image to another
     might be used with paths like:
       src:
@@ -53,6 +54,42 @@ proc parseList(p: var OptParser) =
   of ZXI_HOBETA:
     let img = HOBETAImage.open(img.name)
     img.dumpFiles()
+  else:
+    raise newException(ValueError, "Неизвестный образ")
+
+
+proc dumpMC[T](img: T) =
+  for file in img.files:
+    echo "-rw-rw-rw- 1 speccy speccy " & $file.length & " Jan 01 1980 " & file.filename & "." & file.extension
+
+
+proc parseLsMc(p: var OptParser) =
+  var imgname: Option[string]
+  while true:
+    p.next()
+    case p.kind
+    of cmdEnd:
+      echoError("list")
+      return
+    of cmdShortOption, cmdLongOption:
+      continue
+    of cmdArgument:
+      imgname = p.key.option
+      break
+  let img = parseImageInfo(imgname.get)
+  case img.`type`:
+  of ZXI_TRD:
+    let img = TRDImage.open(img.name)
+    img.dumpMc()
+  of ZXI_SCL:
+    let img = SCLImage.open(img.name)
+    img.dumpMc()
+  of ZXI_TAP:
+    let img = TAPImage.open(img.name)
+    img.dumpMc()
+  of ZXI_HOBETA:
+    let img = HOBETAImage.open(img.name)
+    img.dumpMc()
   else:
     raise newException(ValueError, "Неизвестный образ")
 
@@ -134,6 +171,9 @@ proc main() =
       case p.key
       of "list", "ls":
         parseList(p)
+        break
+      of "mcls":
+        parseLsMc(p)
         break
       of "cp":
         parseCp(p)
